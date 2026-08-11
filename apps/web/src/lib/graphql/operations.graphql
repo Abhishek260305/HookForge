@@ -1,0 +1,21 @@
+query Health {
+  health
+}
+
+query Me {
+  me {
+    id
+    name
+    email
+    image
+  }
+}
+
+query Projects {
+  projects {
+    id
+    name
+    slug
+    environment
+  }
+}

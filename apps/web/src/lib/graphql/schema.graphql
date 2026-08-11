@@ -1,0 +1,21 @@
+"""Stub schema for UI codegen until the Go GraphQL gateway is available."""
+
+type Query {
+  health: String!
+  me: User
+  projects: [Project!]!
+}
+
+type User {
+  id: ID!
+  name: String
+  email: String
+  image: String
+}
+
+type Project {
+  id: ID!
+  name: String!
+  slug: String!
+  environment: String!
+}
