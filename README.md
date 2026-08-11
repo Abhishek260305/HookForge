@@ -1,175 +1,195 @@
-# Relay
+# Hookforge
 
-**Durable event workflows for webhook-native products.**
+Durable event workflows for webhook-native products.
 
-Relay is a multi-tenant platform where teams ingest events, run versioned DAG workflows with retries/delays/compensations, and deliver signed HTTP webhooks — with a realtime run timeline, DLQ, and replay.
+Ingest events, run versioned DAG workflows (retries, delays, wait-signals, compensations), and deliver signed HTTP webhooks — with run timelines, DLQ, and replay.
 
-Inspired by Temporal / Inngest (durable execution) and Svix / Hookdeck (webhook delivery). Scoped as a shippable product, not a full Temporal clone.
+Inspired by Temporal / Inngest (durable execution) and Svix / Hookdeck (webhook delivery).
 
----
+> Status: design complete. Implementation not started.
 
-## Problem
-
-SaaS backends need reliable multi-step automation after events:
-
-- Stripe/GitHub/your API fires an event
-- You must call partners, wait, branch, retry, compensate
-- Naive cron + queues lose events, double-send, or hide failures
-
-Relay makes **ingest → orchestrate → deliver** a first-class product with guarantees you can see in a dashboard.
-
----
-
-## Who it’s for
-
-- Developers building webhook-heavy SaaS
-- Teams that want durable workflows without operating Temporal
-- Anyone who needs **retryable outbound delivery** + **run-level observability**
-
----
-
-## Product pillars
-
-1. **Ingest** — authenticated event intake with idempotency  
-2. **Orchestrate** — versioned DAG workflows (not a flat JSON toy list)  
-3. **Deliver** — signed HTTP with backoff, concurrency limits, DLQ  
-4. **Observe** — per-run timeline, metrics, traces, replay  
-
----
-
-## Core features (v1)
+## Features (v1)
 
 ### Control plane
 - Organizations → projects → environments (`dev` / `prod`)
-- Hashed API keys, scoped by environment, with rotation
-- Role-ready membership model (owner/admin/member)
-- Per-tenant quotas: events/day, max sleep duration, max fan-out width, max concurrent runs
-- Audit log for workflow publish, key rotation, replay actions
+- Environment-scoped API keys (hashed, rotatable)
+- Roles: owner / admin / member
+- Per-tenant quotas (events/day, max sleep, fan-out width, concurrent runs)
+- Audit log for publish, key rotation, and replay
 
 ### Event ingest
-- `POST /v1/ingest/:projectKey` (or header API key)
-- Event `type` + JSON payload + optional `idempotency-key`
-- Duplicate keys return the original event/run (no double-fire)
-- Payload size limits; secrets redacted in UI/logs
-- Append-only event log in Postgres
+- Authenticated ingest API
+- Event `type` + JSON payload + optional idempotency key
+- Duplicate keys return the original event/run
+- Payload size limits; secret redaction in logs/UI
+- Append-only event log (Postgres)
 
 ### Workflow engine
-- Visual-ish **step editor** + raw JSON definition
-- **DAG** steps with `depends_on` (parallel where possible)
-- Step types (v1):
-  - `http_request` — outbound HTTP call
-  - `delay` — durable sleep until `next_run_at`
-  - `fan_out` — deliver same payload to N URLs
-  - `wait_for_event` — pause until matching signal/event or timeout
-  - `compensate` — paired undo HTTP on failure path
-- **Workflow versioning**: runs pin a version; publishing creates a new immutable version
-- Retry policies per step: max attempts, exponential backoff, jitter
-- Run state machine: `queued → running → waiting → completed | failed | dead`
+- Step editor + JSON definition
+- DAG steps via `depends_on` (parallel where possible)
+- Step types:
+  - `http_request`
+  - `delay`
+  - `fan_out`
+  - `wait_for_event`
+  - `compensate`
+- Immutable workflow versions (runs pin a version)
+- Per-step retry policy (max attempts, exponential backoff, jitter)
+- Run states: `queued` → `running` → `waiting` → `completed` | `failed` | `dead`
 
 ### Delivery & reliability
-- Transactional **outbox** from API → queue (no lost enqueue on crash)
-- At-least-once workers; attempt rows uniquely constrained `(run_id, step_id, attempt)`
-- Per-tenant **concurrency caps** (noisy-neighbor protection)
-- Dead-letter queue for exhausted retries
-- **Replay**: create a new run linked to a prior run/event
-- Stuck-run reaper for workers that die mid-step
-- Outbound **HMAC signing** + timestamp skew window
-- **SSRF guards** on user-provided URLs (block link-local / metadata IPs)
+- Transactional outbox → queue
+- At-least-once workers; unique `(run_id, step_id, attempt)`
+- Per-tenant concurrency limits
+- Dead-letter queue + replay
+- Stuck-run reaper
+- Outbound HMAC signing
+- SSRF guards on user-provided URLs
 
 ### Dashboard
-- Project overview: success rate, p95 step latency, DLQ depth
-- Run list with filters (status, workflow, time)
-- **Run timeline**: each step attempt, status codes, latency, errors
-- Live updates (SSE) while a run is in flight
-- One-click replay / retry from DLQ
-- Endpoint registry for outbound webhook targets (optional named destinations)
+- Success rate, p95 latency, DLQ depth
+- Filtered run list + per-run timeline
+- Live updates (SSE)
+- Named outbound endpoints
+- Starter templates (payment wait/fan-out, GitHub-style hooks, webhook portal)
 
-### Templates (opinionated wedge)
-- Stripe-like: payment event → wait for success signal → notify + partner webhook  
-- GitHub-like: push → delay → fan-out staging/prod hooks  
-- Customer webhook portal: manage endpoints + browse delivery attempts  
+### Security & observability
+- TLS, hashed keys, SSRF protection, HMAC, log redaction
+- Structured logs + OpenTelemetry (ingest → worker → HTTP)
+- Metrics: success/fail, queue lag, DLQ depth
 
-### Security
-- TLS-only public endpoints
-- Key hashing at rest
-- SSRF protection on `http_request` / `fan_out`
-- HMAC for outbound authenticity
-- Log/UI redaction for Authorization headers and known secret fields
+## Out of scope (v1)
 
-### Observability
-- Structured logs with `project_id`, `run_id`, `step_id`
-- OpenTelemetry traces: ingest → worker → HTTP step
-- Basic metrics export (success/fail counters, queue lag, DLQ depth)
-- Public demo status snippet for the landing page
-
----
-
-## Explicitly out of scope (v1)
-
-- Full Temporal parity (signals API surface, queries, continue-as-new, multi-language SDKs)
-- BPMN / drag-everywhere graph designer
-- Arbitrary user code execution (no eval sandboxes in v1)
+- Full Temporal parity (multi-language SDKs, continue-as-new, etc.)
+- Full BPMN visual designer
+- Arbitrary user code execution
 - Multi-region active-active
-- Enterprise SSO/SAML (can add later)
-- Guaranteed exactly-once *side effects* at destinations (we document at-least-once + idempotency keys)
+- Enterprise SSO/SAML
+- Exactly-once side effects at destinations (at-least-once + idempotency keys)
 
----
-
-## Architecture (target)
+## Architecture
 
 ```text
-Browser / SaaS producers
-        │
-        ▼
-   API (auth, validate, quotas, idempotency)
-        │
-        ├─► Postgres: events, workflow_versions, runs, run_steps, outbox, audit
-        └─► Outbox dispatcher → Redis queue (BullMQ or equivalent)
-
-   Workers
-        ├─ workflow executor (DAG scheduler)
-        ├─ HTTP delivery + retries
-        └─ delay / wait_for_event scheduler
-
-   Dashboard ◄── SSE/pubsub ── workers + API
+                         ┌─────────────────────┐
+  Browser ──────────────►│  Next.js (single FE) │  Auth.js · App Router
+                         └──────────┬──────────┘
+                                    │ GraphQL / SSE
+                                    ▼
+                         ┌─────────────────────┐
+                         │  GraphQL Gateway    │  aggregates BE services
+                         └──────────┬──────────┘
+              ┌─────────────────────┼─────────────────────┐
+              ▼                     ▼                     ▼
+       identity-svc           control-plane-svc      query-svc
+       (users/orgs)           (projects/keys/        (reads/timelines)
+                              workflows)
+              │                     │                     │
+              └──────────┬──────────┴──────────┬──────────┘
+                         ▼                     ▼
+                   ingest-svc            (gRPC / events)
+                   REST webhooks               │
+                         │                     ▼
+                         └──────────►  Kafka / Redis
+                                         │
+                          ┌──────────────┼──────────────┐
+                          ▼              ▼              ▼
+                    worker-orchestrator  delivery-svc  scheduler-svc
 ```
 
-**Patterns we commit to:** outbox, idempotency keys, DAG scheduling, compensations, per-tenant isolation/quotas, DLQ + replay, OTel.
+- **Frontend:** single Next.js app (App Router)
+- **Backend:** Go microservices behind a GraphQL gateway; public ingest over REST; internal gRPC + Kafka
 
----
+## Backend services (Go)
 
-## Suggested stack
+| Service | Responsibility | Protocols |
+|---------|----------------|-----------|
+| `graphql-gateway` | Dashboard entrypoint; composes other services | GraphQL, SSE |
+| `identity-svc` | Users, orgs, membership | gRPC |
+| `control-plane-svc` | Projects, API keys, workflow definitions/versions | gRPC |
+| `ingest-svc` | Event intake, idempotency, outbox | REST (+ gRPC internal) |
+| `query-svc` | Run/timeline/DLQ reads | gRPC |
+| `worker-orchestrator` | DAG execution state machine | Kafka consumer, gRPC |
+| `delivery-svc` | Signed HTTP delivery, retries, attempts | Kafka consumer |
+| `scheduler-svc` | Delays, wait timeouts, reaper, cron | internal |
 
+**Data:** shared PostgreSQL with per-domain schemas (e.g. `identity`, `control`, `ingest`, `runs`). Redis and Kafka/Redpanda as shared infrastructure.
+
+## Frontend
+
+Single Next.js application:
+
+- Auth.js in-app (GitHub OIDC; optional Google)
+- Talks to the **GraphQL gateway** only (no browser → microservice fan-out)
+- Tailwind CSS + shadcn/ui
+- Feature folders (`runs`, `workflows`, `settings`, …)
+
+## Stack
+
+### Application
 | Layer | Choice |
 |-------|--------|
 | Web | Next.js |
-| API + workers | TypeScript (Fastify or Nest) |
-| DB | Postgres |
-| Queue | Redis + BullMQ |
-| Auth | Clerk or Auth.js |
-| Hosting | Vercel (web) + Fly/Railway (API/workers) |
-| Tracing | OpenTelemetry |
+| Backend | Go microservices |
+| UI API | GraphQL gateway (gqlgen) |
+| Public ingest | REST (`ingest-svc`) |
+| Internal RPC | gRPC |
+| DB | PostgreSQL (shared DB + schemas) |
+| Cache / locks / pubsub | Redis |
+| Streaming | Kafka (Redpanda in Compose) |
+| Scheduling | `scheduler-svc` |
+| UI kit | Tailwind CSS + shadcn/ui |
+| FE GraphQL client | GraphQL Code Generator |
+| Tooling | Make (`proto`, `gql-gen`, …) |
 
----
+### Platform & deploy
+| Layer | Choice |
+|-------|--------|
+| Local | Docker Compose |
+| CI | GitHub Actions |
+| Images | GHCR |
+| Frontend host | Vercel |
+| Backend / data host | Oracle Cloud Always Free (Compose on ARM VM); Hetzner (or similar) as fallback |
+| Orchestration (optional) | Kubernetes + Helm charts in-repo; Istio as a supported mesh target |
 
-## Public API sketch
+### Auth, data, ops
+| Concern | Choice |
+|---------|--------|
+| Dashboard auth | Auth.js → JWT validated at the gateway |
+| Ingest auth | Project API keys (hashed, env-scoped) |
+| Migrations | Goose |
+| Observability | OpenTelemetry → Prometheus, Grafana, Jaeger |
+| Secrets | `.env` locally; K8s Secrets / cloud secret managers when clustered |
+| License | [MIT](./LICENSE) |
+
+### Protocols
+- **GraphQL** — browser → gateway  
+- **REST** — ingest / signals  
+- **gRPC** — service ↔ service  
+- **Kafka** — async handoff (ingest → orchestrator → delivery)
+
+## Roadmap
+
+1. Core services + Next.js dashboard + Compose + CI  
+2. Public deploy: Vercel (web) + Oracle Always Free (API/data plane)  
+3. Expand service split, Helm/K8s docs, optional Istio  
+4. Managed Kubernetes (e.g. EKS) only if/when scale requires it  
+
+## API sketch
 
 ```http
 POST /v1/projects
 POST /v1/projects/:id/workflows
 POST /v1/projects/:id/workflows/:id/publish
-POST /v1/ingest                     # event in
-POST /v1/signals                    # resume wait_for_event
-GET  /v1/runs/:id                   # timeline
+POST /v1/ingest
+POST /v1/signals
+GET  /v1/runs/:id
 POST /v1/runs/:id/replay
 GET  /v1/projects/:id/runs
 GET  /v1/projects/:id/dlq
 POST /v1/projects/:id/dlq/:id/retry
 ```
 
----
-
-## Example workflow definition
+## Example workflow
 
 ```json
 {
@@ -206,53 +226,28 @@ POST /v1/projects/:id/dlq/:id/retry
 }
 ```
 
----
-
-## Demo script (what “done” looks like)
-
-1. Create project + `prod` API key  
-2. Install template “payment → wait → fan-out”  
-3. Send test `payment.created`  
-4. See `reserve` fail once, retry, succeed  
-5. Run sits in `waiting` until `payment.succeeded` signal  
-6. Fan-out delivers to two endpoints with HMAC headers  
-7. Kill a worker mid-run → reaper resumes safely  
-8. Replay the run from the UI  
-
----
-
-## Success metrics
-
-- Ingest p95 < 100ms excluding cold start  
-- Zero silent event loss under API crash (outbox proof)  
-- Documented retry/DLQ behavior with fixtures  
-- Deployed public demo + short Loom walkthrough  
-
----
-
-## Cost target (personal/public demo)
-
-Roughly **$5–40/mo** at low traffic (Neon + Redis + small Fly/Railway + Vercel hobby).
-
----
-
-## Repo status
-
-Product definition only. Implementation not started.
-
-### Planned monorepo layout
+## Repository layout (planned)
 
 ```text
-relay/
-  apps/web          # dashboard + marketing
-  apps/api          # control plane + ingest
-  apps/worker       # executors
-  packages/shared   # types, workflow schema
+hookforge/
+  apps/web
+  services/graphql-gateway
+  services/identity-svc
+  services/control-plane-svc
+  services/ingest-svc
+  services/query-svc
+  services/worker-orchestrator
+  services/delivery-svc
+  services/scheduler-svc
+  packages/proto
+  packages/shared-go
+  deploy/helm
+  deploy/compose
+  migrations/
   README.md
+  LICENSE
 ```
 
----
+## License
 
-## Resume one-liner
-
-> Built Relay — a multi-tenant durable workflow and webhook delivery platform with Postgres outbox, DAG orchestration (delays, wait-signals, compensations), per-tenant concurrency/quotas, signed deliveries, DLQ/replay, and OpenTelemetry.
+[MIT](./LICENSE)
