@@ -6,7 +6,7 @@ Ingest events, run versioned DAG workflows (retries, delays, wait-signals, compe
 
 Inspired by Temporal / Inngest (durable execution) and Svix / Hookdeck (webhook delivery).
 
-> Status: design complete. Implementation not started.
+> Status: UI + projects vertical slice (gateway ↔ control-plane ↔ Postgres). Start Compose for local data plane.
 
 ## Features (v1)
 

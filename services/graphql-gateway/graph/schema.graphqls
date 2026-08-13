@@ -1,0 +1,23 @@
+type Query {
+  health: String!
+  projects: [Project!]!
+}
+
+type Mutation {
+  createProject(input: CreateProjectInput!): Project!
+}
+
+type Project {
+  id: ID!
+  name: String!
+  slug: String!
+  environment: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input CreateProjectInput {
+  name: String!
+  slug: String!
+  environment: String = "dev"
+}
