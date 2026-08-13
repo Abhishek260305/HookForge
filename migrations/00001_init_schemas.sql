@@ -1,0 +1,15 @@
+-- +goose Up
+-- Shared DB bootstrap. Domain schemas/tables added in later migrations.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE SCHEMA IF NOT EXISTS control;
+CREATE SCHEMA IF NOT EXISTS identity;
+CREATE SCHEMA IF NOT EXISTS ingest;
+CREATE SCHEMA IF NOT EXISTS runs;
+
+-- +goose Down
+DROP SCHEMA IF EXISTS runs CASCADE;
+DROP SCHEMA IF EXISTS ingest CASCADE;
+DROP SCHEMA IF EXISTS identity CASCADE;
+DROP SCHEMA IF EXISTS control CASCADE;
+DROP EXTENSION IF EXISTS pgcrypto;

@@ -14,10 +14,14 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "query Health {\n  health\n}\n\nquery Me {\n  me {\n    id\n    name\n    email\n    image\n  }\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n  }\n}": typeof types.HealthDocument,
+    "query Health {\n  health\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}\n\nmutation CreateProject($input: CreateProjectInput!) {\n  createProject(input: $input) {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}": typeof types.HealthDocument,
+    "\n  query Projects {\n    projects {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n": typeof types.ProjectsDocument,
+    "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n": typeof types.CreateProjectDocument,
 };
 const documents: Documents = {
-    "query Health {\n  health\n}\n\nquery Me {\n  me {\n    id\n    name\n    email\n    image\n  }\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n  }\n}": types.HealthDocument,
+    "query Health {\n  health\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}\n\nmutation CreateProject($input: CreateProjectInput!) {\n  createProject(input: $input) {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}": types.HealthDocument,
+    "\n  query Projects {\n    projects {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n": types.ProjectsDocument,
+    "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n": types.CreateProjectDocument,
 };
 
 /**
@@ -37,7 +41,15 @@ export function gql(source: string): unknown;
 /**
  * The gql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function gql(source: "query Health {\n  health\n}\n\nquery Me {\n  me {\n    id\n    name\n    email\n    image\n  }\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n  }\n}"): (typeof documents)["query Health {\n  health\n}\n\nquery Me {\n  me {\n    id\n    name\n    email\n    image\n  }\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n  }\n}"];
+export function gql(source: "query Health {\n  health\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}\n\nmutation CreateProject($input: CreateProjectInput!) {\n  createProject(input: $input) {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}"): (typeof documents)["query Health {\n  health\n}\n\nquery Projects {\n  projects {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}\n\nmutation CreateProject($input: CreateProjectInput!) {\n  createProject(input: $input) {\n    id\n    name\n    slug\n    environment\n    createdAt\n    updatedAt\n  }\n}"];
+/**
+ * The gql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function gql(source: "\n  query Projects {\n    projects {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n"): (typeof documents)["\n  query Projects {\n    projects {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n"];
+/**
+ * The gql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function gql(source: "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n"): (typeof documents)["\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      slug\n      environment\n      createdAt\n      updatedAt\n    }\n  }\n"];
 
 export function gql(source: string) {
   return (documents as any)[source] ?? {};

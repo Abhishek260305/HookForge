@@ -1,3 +1,4 @@
+import { CreateProjectForm } from "@/components/projects/create-project-form";
 import {
   Card,
   CardContent,
@@ -5,35 +6,71 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { fetchProjects } from "@/lib/graphql/projects";
 
-const stats = [
-  { label: "Success rate", value: "—", hint: "Wired when query-svc is live" },
-  { label: "p95 latency", value: "—", hint: "Delivery metrics placeholder" },
-  { label: "DLQ depth", value: "—", hint: "Dead-letter queue placeholder" },
-];
+export default async function OverviewPage() {
+  let projects: Awaited<ReturnType<typeof fetchProjects>> = [];
+  let loadError: string | null = null;
 
-export default function OverviewPage() {
+  try {
+    projects = await fetchProjects();
+  } catch (err) {
+    loadError = err instanceof Error ? err.message : "Failed to load projects";
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="text-sm text-muted-foreground">
-          Project health and recent workflow activity.
+          Projects from control-plane via the GraphQL gateway.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="pb-2">
-              <CardDescription>{stat.label}</CardDescription>
-              <CardTitle className="text-3xl">{stat.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">{stat.hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Create project</CardTitle>
+          <CardDescription>Stores a row in Postgres (`control.projects`).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CreateProjectForm />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Projects</CardTitle>
+          <CardDescription>
+            {loadError
+              ? "Gateway unreachable — start Compose / local services."
+              : `${projects.length} project(s)`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadError ? (
+            <p className="text-sm text-destructive">{loadError}</p>
+          ) : projects.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No projects yet.</p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {projects.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex flex-col gap-1 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.slug} · {p.environment}
+                    </p>
+                  </div>
+                  <p className="font-mono text-xs text-muted-foreground">{p.id}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

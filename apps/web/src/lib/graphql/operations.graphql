@@ -2,20 +2,24 @@ query Health {
   health
 }
 
-query Me {
-  me {
-    id
-    name
-    email
-    image
-  }
-}
-
 query Projects {
   projects {
     id
     name
     slug
     environment
+    createdAt
+    updatedAt
+  }
+}
+
+mutation CreateProject($input: CreateProjectInput!) {
+  createProject(input: $input) {
+    id
+    name
+    slug
+    environment
+    createdAt
+    updatedAt
   }
 }
